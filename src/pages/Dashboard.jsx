@@ -1,40 +1,108 @@
 
-import { useAuth } from '../context/AuthContext'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import api from '../api/client'
+import Navbar from '../components/Navbar'
+import DataTable from '../components/DataTable'
 
 export default function Dashboard() {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
+  const [companies, setCompanies] = useState([])
+  const [users, setUsers] = useState([])
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [c, u] = await Promise.all([
+          api.get('/companies', { params: { limit: 100 } }),
+          api.get('/users', { params: { limit: 100 } }),
+        ])
+
+        setCompanies(c.data.companies)
+        setUsers(u.data.users)
+      } catch (err) {
+        setError(
+          err.response?.data?.detail ||
+          err.response?.data?.message ||
+          'Failed to load data'
+        )
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    load()
+  }, [])
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-md p-8">
+    <div className="min-h-screen bg-slate-50">
+      <Navbar />
 
-        <h1 className="text-3xl font-bold mb-4">
-          Welcome, {user?.name}!
-        </h1>
+      <main className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
 
-        <p className="text-gray-600 mb-2">
-          Role: {user?.role}
-        </p>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">
+            Dashboard Overview
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Manage your companies and users.
+          </p>
+        </div>
 
-        <p className="text-gray-600 mb-6">
-          Tenant ID: {user?.tenant_id}
-        </p>
+        {error && (
+          <p className="text-red-600 bg-red-50 p-3 rounded-lg">
+            {error}
+          </p>
+        )}
 
-        <button
-          onClick={handleLogout}
-          className="bg-red-600 text-white px-6 py-3 rounded hover:bg-red-700"
-        >
-          Logout
-        </button>
+        {loading ? (
+          <p className="text-slate-500">Loading dashboard...</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
 
-      </div>
+              <div className="bg-white rounded-xl shadow-sm border p-6">
+                <p className="text-slate-500 text-sm">Total Companies</p>
+                <p className="text-3xl font-bold text-indigo-600 mt-2">
+                  {companies.length}
+                </p>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm border p-6">
+                <p className="text-slate-500 text-sm">Total Users</p>
+                <p className="text-3xl font-bold text-indigo-600 mt-2">
+                  {users.length}
+                </p>
+              </div>
+
+            </div>
+
+            <DataTable
+              title="Companies"
+              columns={[
+                { key: 'id', label: 'ID' },
+                { key: 'name', label: 'Name' },
+                { key: 'industry', label: 'Industry' },
+              ]}
+              rows={companies}
+              emptyText="No companies yet."
+            />
+
+            <DataTable
+              title="Users"
+              columns={[
+                { key: 'id', label: 'ID' },
+                { key: 'name', label: 'Name' },
+                { key: 'email', label: 'Email' },
+                { key: 'role', label: 'Role' },
+              ]}
+              rows={users}
+              emptyText="No users yet."
+            />
+          </>
+        )}
+
+      </main>
     </div>
   )
 }
